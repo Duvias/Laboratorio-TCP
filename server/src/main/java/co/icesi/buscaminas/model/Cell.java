@@ -2,9 +2,10 @@ package co.icesi.buscaminas.model;
 
 import java.io.Serializable;
 
-public class Cell implements Serializable{
+public class Cell implements Serializable {
 
     private boolean isLandMine;
+
     private int value;
 
     private boolean hide;
@@ -13,11 +14,19 @@ public class Cell implements Serializable{
 
     private boolean isMarked;
 
-    public Cell(boolean isMine, int value) {
+    public Cell(
+            boolean isMine,
+            int value
+    ) {
+
         this.isLandMine = isMine;
+
         this.value = value;
+
         hide = true;
+
         showAll = false;
+
         isMarked = false;
     }
 
@@ -25,7 +34,10 @@ public class Cell implements Serializable{
         return isMarked;
     }
 
-    public void setMarked(boolean marked) {
+    public void setMarked(
+            boolean marked
+    ) {
+
         isMarked = marked;
     }
 
@@ -33,7 +45,10 @@ public class Cell implements Serializable{
         return value;
     }
 
-    public void setLandMine(boolean landMine) {
+    public void setLandMine(
+            boolean landMine
+    ) {
+
         isLandMine = landMine;
     }
 
@@ -41,7 +56,10 @@ public class Cell implements Serializable{
         return isLandMine;
     }
 
-    public void setValue(int value) {
+    public void setValue(
+            int value
+    ) {
+
         this.value = value;
     }
 
@@ -49,11 +67,17 @@ public class Cell implements Serializable{
         return hide;
     }
 
-    public void setHide(boolean hide) {
+    public void setHide(
+            boolean hide
+    ) {
+
         this.hide = hide;
     }
 
-    public void setShowAll(boolean showAll) {
+    public void setShowAll(
+            boolean showAll
+    ) {
+
         this.showAll = showAll;
     }
 
@@ -63,9 +87,18 @@ public class Cell implements Serializable{
 
     @Override
     public String toString() {
+
         if (isMarked) {
+
             return "\u001B[33mM\u001B[0m";
         }
-        return hide && !showAll?".":(isLandMine ?"\u001B[31m*\u001B[0m":value+"");
+
+        return hide && !showAll
+                ? "."
+                : (
+                    isLandMine
+                            ? "\u001B[31m*\u001B[0m"
+                            : value + ""
+                );
     }
 }

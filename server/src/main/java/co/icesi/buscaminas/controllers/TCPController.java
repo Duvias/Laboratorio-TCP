@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
@@ -36,14 +37,25 @@ public class TCPController {
     }
 
     public TCPController(ServicesImpl services, int port) {
+
         this.services = services;
+
         try {
-            serverSocket = new ServerSocket(port);
+
+            serverSocket = new ServerSocket(
+                    port,
+                    50,
+                    InetAddress.getByName("0.0.0.0")
+            );
+
             executor = Executors.newFixedThreadPool(5);
+
             gson = new GsonBuilder().create();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         running = true;
     }
 
@@ -56,14 +68,30 @@ public class TCPController {
     }
 
     public void startService() {
-        System.out.println("TCP Service started on port " + serverSocket.getLocalPort());
+
+        System.out.println(
+                "TCP Service started on port "
+                        + serverSocket.getLocalPort()
+        );
+
         while (running) {
+
             try {
-                executor.execute(new TCPClientHandler(serverSocket.accept(), services));
+
+                Socket socket = serverSocket.accept();
+
+                executor.execute(
+                        new TCPClientHandler(socket, services)
+                );
+
             } catch (Exception e) {
-                e.printStackTrace();
+
+                if (running) {
+                    e.printStackTrace();
+                }
             }
         }
+
         try {
             serverSocket.close();
         } catch (Exception e) {
@@ -74,82 +102,269 @@ public class TCPController {
     class TCPClientHandler implements Runnable {
 
         private Socket clientSocket;
+
         private ServicesImpl services;
 
-        public TCPClientHandler(Socket clientSocket, ServicesImpl services) {
+        public TCPClientHandler(
+                Socket clientSocket,
+                ServicesImpl services
+        ) {
+
             this.clientSocket = clientSocket;
             this.services = services;
         }
 
         @Override
         public void run() {
+
             try {
-                System.out.println("Client connected: " + clientSocket.getInetAddress());
-                BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+
+                System.out.println(
+                        "Client connected: "
+                                + clientSocket.getInetAddress()
+                );
+
+                BufferedReader reader =
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        clientSocket.getInputStream()
+                                )
+                        );
+
+                BufferedWriter writer =
+                        new BufferedWriter(
+                                new OutputStreamWriter(
+                                        clientSocket.getOutputStream()
+                                )
+                        );
 
                 String line = reader.readLine();
-                Request rq = gson.fromJson(line, Request.class);
+
+                if (line == null) {
+                    return;
+                }
+
+                Request rq =
+                        gson.fromJson(
+                                line,
+                                Request.class
+                        );
+
                 Map<String, String> data = rq.data;
+
                 Response response = new Response();
+
                 response.data = new HashMap<>();
+
+                Cell[][] board;
+
                 switch (rq.action) {
+
                     case "SELECT_CELL":
-                        int i = Integer.parseInt(data.get("i"));
-                        int j = Integer.parseInt(data.get("j"));
+
+                        int i =
+                                Integer.parseInt(
+                                        data.get("i")
+                                );
+
+                        int j =
+                                Integer.parseInt(
+                                        data.get("j")
+                                );
+
                         try {
-                            boolean resp = services.selectCell(i, j);
+
+                            boolean resp =
+                                    services.selectCell(i, j);
+
                             response.status = "OK";
-                            response.data.put("win", resp);
 
-                            response.data.put("gameEnd", resp);
+                            response.data.put(
+                                    "win",
+                                    resp
+                            );
+
+                            response.data.put(
+                                    "gameEnd",
+                                    resp
+                            );
+
                         } catch (Exception e) {
-                            response.data.put("gameEnd", true);
-                            response.data.put("win", false);
 
+                            response.status = "ERROR";
+
+                            response.data.put(
+                                    "gameEnd",
+                                    true
+                            );
+
+                            response.data.put(
+                                    "win",
+                                    false
+                            );
+
+                            response.data.put(
+                                    "message",
+                                    e.getMessage()
+                            );
                         }
-                        Cell[][] board = services.printBoard();
-                        response.data.put("board", board);
+
+                        board = services.printBoard();
+
+                        response.data.put(
+                                "board",
+                                board
+                        );
+
                         break;
+
+                    case "MARK_CELL":
+
+                        int mi =
+                                Integer.parseInt(
+                                        data.get("i")
+                                );
+
+                        int mj =
+                                Integer.parseInt(
+                                        data.get("j")
+                                );
+
+                        try {
+
+                            services.markCell(mi, mj);
+
+                            response.status = "OK";
+
+                        } catch (Exception e) {
+
+                            response.status = "ERROR";
+
+                            response.data.put(
+                                    "message",
+                                    e.getMessage()
+                            );
+                        }
+
+                        board = services.printBoard();
+
+                        response.data.put(
+                                "board",
+                                board
+                        );
+
+                        break;
+
                     case "SOW_ALL":
+
                         services.showAll(true);
+
                         board = services.printBoard();
+
                         response.status = "OK";
-                        response.data.put("board", board);
+
+                        response.data.put(
+                                "gameEnd",
+                                true
+                        );
+
+                        response.data.put(
+                                "board",
+                                board
+                        );
+
                         break;
+
                     case "GET_BOARD":
+
                         board = services.printBoard();
+
                         response.status = "OK";
-                        response.data.put("board", board);
+
+                        response.data.put(
+                                "board",
+                                board
+                        );
+
                         break;
+
                     case "INIT_GAME":
-                        i = Integer.parseInt(data.get("n"));
-                        j = Integer.parseInt(data.get("m"));
-                        int m = Integer.parseInt(data.get("minas"));
-                        services.initGame(i, j, m);
+
+                        i =
+                                Integer.parseInt(
+                                        data.get("n")
+                                );
+
+                        j =
+                                Integer.parseInt(
+                                        data.get("m")
+                                );
+
+                        int m =
+                                Integer.parseInt(
+                                        data.get("minas")
+                                );
+
+                        services.initGame(
+                                i,
+                                j,
+                                m
+                        );
+
                         board = services.printBoard();
+
                         response.status = "OK";
-                        response.data.put("board", board);
+
+                        response.data.put(
+                                "board",
+                                board
+                        );
+
                         break;
 
                     default:
+
+                        response.status = "ERROR";
+
+                        response.data.put(
+                                "message",
+                                "Accion no soportada: "
+                                        + rq.action
+                        );
+
                         break;
                 }
 
-                String json = gson.toJson(response);
+                String json =
+                        gson.toJson(response);
+
                 writer.write(json);
+
+                /*
+                 * TCP Framing:
+                 * cada JSON termina en \n.
+                 */
                 writer.newLine();
+
+                /*
+                 * Envía inmediatamente los datos.
+                 */
                 writer.flush();
+
                 writer.close();
                 reader.close();
 
                 clientSocket.close();
-                System.out.println("Client disconnected: " + clientSocket.getInetAddress());
+
+                System.out.println(
+                        "Client disconnected: "
+                                + clientSocket.getInetAddress()
+                );
+
             } catch (Exception e) {
+
                 e.printStackTrace();
             }
         }
-
     }
-
 }
